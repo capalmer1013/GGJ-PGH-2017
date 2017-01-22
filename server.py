@@ -18,6 +18,7 @@ SUBSCRIBE_MULTICAST_PORT = 5010  # sending port
 GAME_SERVER_PORT = 5009  # Listening Port
 ANY = '0.0.0.0'
 
+# a bunch of keys for the dicts that make the world go round
 player1 = "PLAYER1"
 player2 = "PLAYER2"
 player1Theta = "PLAYER1_THETA"
@@ -42,7 +43,7 @@ class gameServer(threading.Thread):
         self.spectatorList = []
         self.multicastSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self.multicastSock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 255)
-        self.loopsPerSec = 20.0
+        self.loopsPerSec = 50.0
         self.loop = True
         # players (x, y, z, theta)
         # ball(x, y, z, (x, y, z)vector3)
@@ -65,6 +66,8 @@ class gameServer(threading.Thread):
             ballRotation: (0.0, 0.0, 0.0),
             otherObjects: {},
             }
+        self.player1Score = 0
+        self.player2Score = 0
         self.lastBallPos = None
 
     def run(self):
@@ -72,11 +75,13 @@ class gameServer(threading.Thread):
             time.sleep(1.0/self.loopsPerSec)
             self.sendMulticast()
             self.alertPlayers()
+            '''  This is for making the player 2 creep
             z = self.gameModel[player2][2]
-            if self.gameModel[player2][2] < 0:
+            if self.gameModel[player2][2] < 10:
                 self.gameModel[player2] = (0.0, 0.75, z+0.1)
             if self.gameModel[player2][2] > 10:
-                self.gameModel[player2] = (0.0, 0.75, z-0.1)
+                self.gameModel[player2] = (0.0, 0.75, -10)
+            '''
 
     def alertPlayers(self):
         if self.player1IP:
@@ -91,6 +96,8 @@ class gameServer(threading.Thread):
 
     def addPlayer(self, addr):
         if self.player1IP == addr[0]:
+            return
+        if self.player2IP == addr[0]:
             return
 
         if self.player1IP and self.player2IP:
@@ -108,12 +115,15 @@ class gameServer(threading.Thread):
 
     def sendMulticast(self):
         self.multicastSock.sendto(self.packGameModel(), (SUBSCRIBE_MULTICAST_ADDR, SUBSCRIBE_MULTICAST_PORT))
-        #debug(["player1:", self.gameModel[player1]])
+        #debug(["player2:", self.gameModel[player2]])
+        # debug(["player1:", self.gameModel[player1]])
         # debug(["ball:", self.gameModel[ball]])
 
     def packGameModel(self):
         jsonOtherObjects = json.dumps(self.gameModel[otherObjects])
         result = struct.pack('I', 1337)
+        result += struct.pack('I', self.player1Score)
+        result += struct.pack('I', self.player2Score)
         result += ''.join([struct.pack('f', i) for i in self.gameModel[player1]])
         result += struct.pack('f', self.gameModel[player1Theta])
         result += ''.join([struct.pack('f', i) for i in self.gameModel[player2]])
@@ -153,6 +163,12 @@ class gameServer(threading.Thread):
         self.gameModel[ballRotation] = self.tempModel[ballRotation]
         # debug(["ball:", self.tempModel[ball]])
 
+    def addPoint(self, addr):
+        if addr[0] == self.player1IP:
+            self.player1Score += 1
+        elif addr[0] == self.player2IP:
+            self.player2Score += 1
+
     def updateModel(self):
         # print "updating game model"
         # self.gameModel = self.tempModel
@@ -177,11 +193,12 @@ def main():
                 print("player1:", game.player1IP)
                 print("player2:", game.player2IP)
                 print("spectatorList:", game.spectatorList)
-
+            elif data == "score":
+                game.addPoint(addr)
             else:
 
                 game.unpackGameModel(data, addr[0])
-                print("data:", data)
+                # print("data:", data)
                 game.updateModel()
 
     except:  # Exception as e:
