@@ -19,6 +19,8 @@ ANY = '0.0.0.0'
 
 player1 = "PLAYER1"
 player2 = "PLAYER2"
+player1Theta = "PLAYER1_THETA"
+player2Theta = "PLAYER2_THETA"
 ball = "BALL"
 otherObjects = "OTHER_OBJECTS"
 ballRotation = "BALL_ROTATION"
@@ -108,11 +110,17 @@ class gameServer(threading.Thread):
 
     def unpackGameModel(self, messageBytes, addr):
         offset = 0
+
         self.tempModel[player1] = struct.unpack_from('fff', messageBytes, offset)
         offset += struct.calcsize('fff')
-        
+        self.tempModel[player1Theta] = struct.unpack_from('f', messageBytes, offset)
+        offset += struct.calcsize('f')
+
         self.tempModel[player2] = struct.unpack_from('fff', messageBytes, offset)
         offset += struct.calcsize('fff')
+        self.tempModel[player2Theta] = struct.unpack_from('f', messageBytes, offset)
+        offset += struct.calcsize('f')
+
         self.tempModel[ball] = struct.unpack_from('fff', messageBytes, offset)
         offset += struct.calcsize('fff')
         self.tempModel[ballRotation] = struct.unpack_from('fff', messageBytes, offset)

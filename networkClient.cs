@@ -57,6 +57,15 @@ public class networkClient : MonoBehaviour{
 		byte[] allTheBytes = new byte[1024];
 		int totalBytes = 0;
 
+        if(/*this is player 1*/){
+            float player1Theta = transform.rotation.eulerAngles.y;
+            float player2Theta = gameObject however you access the other objects theta
+
+        } else if(/*this is player 2*/){
+            float player1Theta = gameObject however you access the other objects theta
+            float player2Theta = transform.rotation.eulerAngles.y;
+        }
+
 		allTheBytes[totalBytes] = BitConverter.GetBytes(player1Location.x)[0];
 		allTheBytes[totalBytes+1] = BitConverter.GetBytes(player1Location.x)[1];
 		allTheBytes[totalBytes+2] = BitConverter.GetBytes(player1Location.x)[2];
@@ -77,6 +86,42 @@ public class networkClient : MonoBehaviour{
 
 		totalBytes += sizeof(float);
 
+        // add the player1 theta
+        allTheBytes[totalBytes] = BitConverter.GetBytes(transform.rotation.eulerAngles.y)[0];
+        allTheBytes[totalBytes+1] = BitConverter.GetBytes(transform.rotation.eulerAngles.y)[1];
+        allTheBytes[totalBytes+2] = BitConverter.GetBytes(transform.rotation.eulerAngles.y)[2];
+        allTheBytes[totalBytes+3] = BitConverter.GetBytes(transform.rotation.eulerAngles.y)[3];
+
+        totalBytes += sizeof(float)
+
+        // Player 2 position
+		allTheBytes[totalBytes] = BitConverter.GetBytes(player2Location.x)[0];
+		allTheBytes[totalBytes+1] = BitConverter.GetBytes(player2Location.x)[1];
+		allTheBytes[totalBytes+2] = BitConverter.GetBytes(player2Location.x)[2];
+		allTheBytes[totalBytes+3] = BitConverter.GetBytes(player2Location.x)[3];
+
+		totalBytes += sizeof(float);
+
+		allTheBytes[totalBytes] = BitConverter.GetBytes(player2Location.y)[0]; 
+		allTheBytes[totalBytes+1] = BitConverter.GetBytes(player2Location.y)[1];
+		allTheBytes[totalBytes+2] = BitConverter.GetBytes(player2Location.y)[2]; 
+		allTheBytes[totalBytes+3] = BitConverter.GetBytes(player2Location.y)[3];
+		totalBytes += sizeof(float);
+
+		allTheBytes[totalBytes] = BitConverter.GetBytes(player2Location.z)[0];
+		allTheBytes[totalBytes+1] = BitConverter.GetBytes(player2Location.z)[1];
+		allTheBytes[totalBytes+2] = BitConverter.GetBytes(player2Location.z)[2];
+		allTheBytes[totalBytes+3] = BitConverter.GetBytes(player2Location.z)[3];
+
+		totalBytes += sizeof(float);
+
+        // player 2 theta
+        allTheBytes[totalBytes] = BitConverter.GetBytes(transform.rotation.eulerAngles.y)[0];
+        allTheBytes[totalBytes+1] = BitConverter.GetBytes(transform.rotation.eulerAngles.y)[1];
+        allTheBytes[totalBytes+2] = BitConverter.GetBytes(transform.rotation.eulerAngles.y)[2];
+        allTheBytes[totalBytes+3] = BitConverter.GetBytes(transform.rotation.eulerAngles.y)[3];
+
+        totalBytes += sizeof(float)
 
 		//Send Ball Location
 		allTheBytes[totalBytes] = BitConverter.GetBytes(ballLocation.x)[0];
@@ -201,6 +246,9 @@ public class networkClient : MonoBehaviour{
 
 		player1Location.z =(float)BitConverter.ToSingle(receivedBytes, totalBytes);
 		totalBytes += sizeof(float);
+        
+        player1Theta = (float)BitConverter.ToSingle(receivedBytes, totalBytes);
+        totalBytes += sizeof(float);
 
 		//Player location
 		player2Location.x =(float)BitConverter.ToSingle(receivedBytes, totalBytes);
@@ -212,9 +260,12 @@ public class networkClient : MonoBehaviour{
 		player2Location.z =(float)BitConverter.ToSingle(receivedBytes, totalBytes);
 		totalBytes += sizeof(float);
 
+        player2Theta = (float)BitConverter.ToSingle(receivedBytes, totalBytes);
+        totalBytes += sizeof(float);
+
 		player2Locations.Add (player2Location);
 
-		/*Player theta
+		/*Player theta This right here is wrong af bro
 		player1Theta =(float)BitConverter.ToInt32(receivedBytes, totalBytes);
 		totalBytes += sizeof(float); */
 
