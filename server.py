@@ -24,7 +24,7 @@ otherObjects = "OTHER_OBJECTS"
 ballRotation = "BALL_ROTATION"
 
 def debug(outString):
-    outString = [str(i) for i in outString]
+    outString = [str(i) for i in outString]  # '%.3f' % i if type(i) == float else
     outString = ' '.join(outString)
     if DEBUG:
         print(outString)
@@ -38,15 +38,23 @@ class gameServer(threading.Thread):
         self.spectatorList = []
         self.multicastSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self.multicastSock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 255)
-        self.loopsPerSec = 1.0  # 30.0
+        self.loopsPerSec = 100.0
         self.loop = True
         # players (x, y, z, theta)
         # ball(x, y, z, (x, y, z)vector3)
         self.gameModel = {
+            player1:      (10.0, 10.0, 10.0,),
+            player2:      (10.0, 10.0, 10.0,),
+            ball:         (10.0, 10.0, 10.0,),
+            ballRotation: (10.0, 10.0, 10.0,),
+            otherObjects: {},
+            }
+
+        self.tempModel = {
             player1: (0.0, 0.0, 0.0),
             player2: (0.0, 0.0, 0.0),
             ball: (0.0, 0.0, 0.0,),
-            ballRotation: (0.0, 0.0, 0.0),  
+            ballRotation: (0.0, 0.0, 0.0),
             otherObjects: {},
             }
 
@@ -79,8 +87,19 @@ class gameServer(threading.Thread):
         result += jsonOtherObjects
         return result
 
-    def updateModel(self, modelMessage):
-        pass
+    def unpackGameModel(self, messageBytes):
+        offset = 0
+        self.tempModel[player1] = struct.unpack_from('fff', messageBytes, offset)
+        offset += struct.calcsize('fff')
+        self.tempModel[player2] = struct.unpack_from('fff', messageBytes, offset)
+        offset += struct.calcsize('fff')
+        self.tempModel[ball] = struct.unpack_from('fff', messageBytes, offset)
+        offset += struct.calcsize('fff')
+        self.tempModel[ballRotation] = struct.unpack_from('fff', messageBytes, offset)
+        offset += struct.calcsize('fff')
+
+    def updateModel(self):
+        self.gameModel = self.tempModel
 
 
 def main():
@@ -96,11 +115,13 @@ def main():
             if data == "suh dude":
                 game.addPlayer(addr)
             else:
-                game.updateModel(data)
+                game.unpackGameModel(data)
+                game.updateModel()
 
-            debug(["received message:", data, addr])
+            debug(["(xyz)", game.gameModel[player1][0], game.gameModel[player1][1], game.gameModel[player1][2]])
+            #debug(["received message:", data, addr])
 
-    except KeyboardInterrupt:
+    except:
         game.loop = False
         exit()
 
