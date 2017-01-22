@@ -27,6 +27,13 @@ ball = "BALL"
 otherObjects = "OTHER_OBJECTS"
 ballRotation = "BALL_ROTATION"
 
+#animationStates
+IDLE = 0
+RUNNING = 1
+BACKWARDS = 2
+LEFT_STRAFE = 3
+RIGHT_STRAFE = 4
+JUMP = 5
 
 def debug(outString):
     outString = [str(i) for i in outString]  # '%.3f' % i if type(i) == float else
@@ -40,11 +47,14 @@ class gameServer(threading.Thread):
         threading.Thread.__init__(self)
         self.player1IP = None
         self.player2IP = None
+        self.player1State = 0
+        self.player2State = 0
         self.spectatorList = []
         self.multicastSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self.multicastSock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 255)
-        self.loopsPerSec = 50.0
+        self.loopsPerSec = 100.0
         self.loop = True
+        self.ballBelief = None
         # players (x, y, z, theta)
         # ball(x, y, z, (x, y, z)vector3)
         self.gameModel = {
@@ -71,7 +81,14 @@ class gameServer(threading.Thread):
         self.lastBallPos = None
 
     def run(self):
+        timeList = []
+        prevTime = time.time()
         while self.loop:
+            timeList.append(time.time() - prevTime)
+            prevTime = time.time()
+            if len(timeList) > 1000:
+                #print '%.3f' % (1.0/(sum(timeList)/len(timeList))), "avg loops per second"
+                timeList = []
             time.sleep(1.0/self.loopsPerSec)
             self.sendMulticast()
             self.alertPlayers()
@@ -117,16 +134,21 @@ class gameServer(threading.Thread):
         self.multicastSock.sendto(self.packGameModel(), (SUBSCRIBE_MULTICAST_ADDR, SUBSCRIBE_MULTICAST_PORT))
         #debug(["player2:", self.gameModel[player2]])
         # debug(["player1:", self.gameModel[player1]])
-        # debug(["ball:", self.gameModel[ball]])
+        #debug(["ball:", self.gameModel[ball]])
 
     def packGameModel(self):
         jsonOtherObjects = json.dumps(self.gameModel[otherObjects])
         result = struct.pack('I', 1337)
+
+        result += struct.pack('I', self.player1State)
+        result += struct.pack('I', self.player2State)
         result += struct.pack('I', self.player1Score)
         result += struct.pack('I', self.player2Score)
         result += ''.join([struct.pack('f', i) for i in self.gameModel[player1]])
+        # print "player1theta", self.gameModel[player1Theta]
         result += struct.pack('f', self.gameModel[player1Theta])
         result += ''.join([struct.pack('f', i) for i in self.gameModel[player2]])
+        # print "player2theta", self.gameModel[player2Theta]
         result += struct.pack('f', self.gameModel[player2Theta])
         result += ''.join([struct.pack('f', i) for i in self.gameModel[ball]])
         result += ''.join([struct.pack('f', i) for i in self.gameModel[ballRotation]])
@@ -137,14 +159,21 @@ class gameServer(threading.Thread):
     def unpackGameModel(self, messageBytes, addr):
         offset = 0
         # print "data:", messageBytes
+        if addr == self.player1IP:
+            self.player1State = struct.unpack_from('I', messageBytes, offset)[0]
+        elif addr == self.player2IP:
+            self.player2State = struct.unpack_from('I', messageBytes, offset)[0]
+        else:
+            return
+        offset += struct.calcsize("I")
         self.tempModel[player1] = struct.unpack_from('fff', messageBytes, offset)
         offset += struct.calcsize('fff')
-        self.tempModel[player1Theta] = struct.unpack_from('f', messageBytes, offset)
+        self.tempModel[player1Theta] = struct.unpack_from('f', messageBytes, offset)[0]
         offset += struct.calcsize('f')
 
         self.tempModel[player2] = struct.unpack_from('fff', messageBytes, offset)
         offset += struct.calcsize('fff')
-        self.tempModel[player2Theta] = struct.unpack_from('f', messageBytes, offset)
+        self.tempModel[player2Theta] = struct.unpack_from('f', messageBytes, offset)[0]
         offset += struct.calcsize('f')
 
         self.tempModel[ball] = struct.unpack_from('fff', messageBytes, offset)
@@ -154,19 +183,25 @@ class gameServer(threading.Thread):
 
         if addr == self.player1IP:
             self.gameModel[player1] = self.tempModel[player1]
+            self.gameModel[player1Theta] = self.tempModel[player1Theta]
             # add player theta
 
         if addr == self.player2IP:
             self.gameModel[player2] = self.tempModel[player2]
+            self.gameModel[player2Theta] = self.tempModel[player2Theta]
 
-        self.gameModel[ball] = self.tempModel[ball]
+        if addr == self.ballBelief:
+            self.gameModel[ball] = self.tempModel[ball]
+
         self.gameModel[ballRotation] = self.tempModel[ballRotation]
         # debug(["ball:", self.tempModel[ball]])
 
     def addPoint(self, addr):
         if addr[0] == self.player1IP:
+            print "score player1"
             self.player1Score += 1
         elif addr[0] == self.player2IP:
+            print "score player2"
             self.player2Score += 1
 
     def updateModel(self):
@@ -194,7 +229,11 @@ def main():
                 print("player2:", game.player2IP)
                 print("spectatorList:", game.spectatorList)
             elif data == "score":
+                print "score", addr
                 game.addPoint(addr)
+            elif data == "ball":
+                print "Ball"
+                game.ballBelief = addr[0]
             else:
 
                 game.unpackGameModel(data, addr[0])
